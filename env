@@ -1,0 +1,3 @@
+ENCRYPTION_KEY=مفتاح_سري_طويل_32حرف_أو_أكثر_غيّره
+ADMIN_PASSWORD=admin123
+PORT=3000
