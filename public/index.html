@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>تسجيل وخلاص عن بعد – المستشفى العمومي</title>
+  <title>وسيط المواعيد الطبية - احجز بسهولة</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
@@ -11,15 +11,16 @@
 <body>
   <div class="container py-4">
     <div class="text-center mb-4">
-      <!-- استخدمنا صورة جماعية لأطباء (يمكنك وضع صورتك في public/images/hero-doctors.jpg) -->
-      <img src="images/hero-doctors.jpg" alt="فريق الأطباء" class="hero-img" onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'%3E%3Ccircle cx=\'50\' cy=\'40\' r=\'25\' fill=\'%23a0d2f0\'/%3E%3Ctext x=\'50\' y=\'55\' text-anchor=\'middle\' font-size=\'30\'%3E👩‍⚕️%3C/text%3E%3C/svg%3E';">
-      <h1 class="fw-bold mt-2">المستشفى العمومي</h1>
-      <p class="lead text-muted">تسجيل وخلاص عن بعد – وفر وقتك وتجنب الاكتظاظ</p>
+      <!-- شعار الشركة (يمكنك استبداله بصورة شعارك الحقيقية) -->
+      <div class="logo-circle mb-3">و</div>
+      <h2 class="fw-bold">موعدي</h2>
+      <p class="lead text-muted">نحجز موعدك في المستشفى العمومي وأنت في بيتك</p>
     </div>
 
     <div class="card shadow-lg border-0 rounded-4 mx-auto" style="max-width: 600px;">
       <div class="card-body p-4">
         <form id="registrationForm">
+          <!-- نفس الحقول السابقة (الاسم، اللقب، البطاقة، الهاتف، البريد، المستشفى، القسم) -->
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label">الاسم *</label>
@@ -48,7 +49,6 @@
                 <option value="المستشفى الجامعي ابن رشد">المستشفى الجامعي ابن رشد</option>
                 <option value="مستشفى الحسيني">مستشفى الحسيني</option>
                 <option value="مستشفى الأم والطفل">مستشفى الأم والطفل</option>
-                <option value="مستشفى الأمراض الصدرية">مستشفى الأمراض الصدرية</option>
               </select>
             </div>
             <div class="col-md-6">
@@ -58,19 +58,15 @@
                 <option value="الطب العام">الطب العام</option>
                 <option value="طب الأطفال">طب الأطفال</option>
                 <option value="النساء والتوليد">النساء والتوليد</option>
-                <option value="الجراحة">الجراحة</option>
-                <option value="العظام">العظام</option>
               </select>
             </div>
           </div>
-
-          <button type="submit" class="btn btn-success btn-lg w-100 mt-4">تسجيل وخلاص (محاكاة الدفع)</button>
+          <button type="submit" class="btn btn-primary btn-lg w-100 mt-4">احجز موعدك الآن</button>
         </form>
 
-        <!-- عرض النتيجة و QR -->
         <div id="resultSection" class="d-none text-center mt-4">
-          <div class="alert alert-success">
-            <h5>✅ تم التسجيل والخلاص بنجاح!</h5>
+          <div class="alert alert-info">
+            <h5>✅ تم استلام طلبك!</h5>
             <p id="emailMsg"></p>
           </div>
           <img id="qrImage" src="" alt="QR Code" class="img-fluid qr-border mb-2">
@@ -79,12 +75,10 @@
         </div>
       </div>
     </div>
-    <div class="text-center mt-3">
-      <a href="admin.html" class="text-secondary">دخول الإدارة</a>
-    </div>
   </div>
 
   <script>
+    // نفس السكريبت السابق، لكن مع الرسالة الجديدة
     document.getElementById('registrationForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const data = {
@@ -110,10 +104,10 @@
           document.getElementById('emailMsg').textContent = result.message;
           document.getElementById('resultSection').classList.remove('d-none');
         } else {
-          alert('خطأ: ' + (result.error || 'فشل التسجيل'));
+          alert('خطأ: ' + (result.error || 'فشل الطلب'));
         }
       } catch (err) {
-        alert('تعذر الاتصال بالسيرفر');
+        alert('تعذر الاتصال بالخادم');
       }
     });
   </script>
