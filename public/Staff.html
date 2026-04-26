@@ -2,22 +2,23 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>لوحة تحكم الموظف - واسطة الخير</title>
+  <title>لوحة تحكم موعدي</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body class="bg-light">
   <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-      <h2 class="fw-bold">طلبات المرضى</h2>
-      <div><span class="badge bg-primary">واسطة الخير</span></div>
+      <h2 class="fw-bold">لوحة تحكم موعدي</h2>
+      <div><span class="badge bg-primary fs-6">فريق موعدي</span></div>
     </div>
 
     <div class="card shadow-sm rounded-4 mb-4">
       <div class="card-body">
         <div class="row align-items-end">
           <div class="col-md-4 mb-2">
-            <input type="password" id="adminPassword" class="form-control" placeholder="كلمة سر الموظف">
+            <input type="password" id="adminPassword" class="form-control" placeholder="كلمة سر الفريق">
           </div>
           <div class="col-md-2 mb-2">
             <button id="loadRequestsBtn" class="btn btn-primary w-100">تحميل الطلبات</button>
@@ -35,6 +36,7 @@
             <tr>
               <th>المريض</th>
               <th>الهاتف</th>
+              <th>البريد</th>
               <th>المستشفى / القسم</th>
               <th>الحالة</th>
               <th>الموعد</th>
@@ -85,6 +87,7 @@
         row.innerHTML = `
           <td>${req.nom} ${req.prenom}</td>
           <td>${req.telephone}</td>
+          <td>${req.email || ''}</td>
           <td>${req.hopital} - ${req.departement}</td>
           <td>
             <select class="form-select form-select-sm status-select" data-id="${req.id}">
@@ -103,7 +106,7 @@
         tbody.appendChild(row);
       });
 
-      // إضافة أحداث الاستماع لأزرار الحفظ
+      // أزرار الحفظ
       document.querySelectorAll('.update-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
           const id = e.target.dataset.id;
