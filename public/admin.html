@@ -2,31 +2,49 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>لوحة الإدارة – المستشفى</title>
+  <title>لوحة الإدارة – المستشفى العمومي</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body class="bg-light">
   <div class="container py-4">
-    <h2 class="text-center mb-4">لوحة إدارة المواعيد</h2>
-    <div class="mb-3">
-      <input type="password" id="adminPassword" class="form-control" placeholder="كلمة سر الإدارة" style="max-width: 300px;">
-      <button id="loadDataBtn" class="btn btn-primary mt-2">تحميل التسجيلات</button>
+    <div class="text-center mb-4">
+      <h2 class="fw-bold">لوحة إدارة المواعيد</h2>
+      <p class="text-muted">يمكنك تحديد المواعيد وإرسال الإشعارات</p>
+    </div>
+
+    <div class="card shadow-sm rounded-4 mb-4">
+      <div class="card-body">
+        <div class="row align-items-end">
+          <div class="col-md-4 mb-2">
+            <input type="password" id="adminPassword" class="form-control" placeholder="كلمة سر الإدارة">
+          </div>
+          <div class="col-md-2 mb-2">
+            <button id="loadDataBtn" class="btn btn-primary w-100">تحميل القائمة</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div id="errorMsg" class="alert alert-danger d-none"></div>
-    <table class="table table-bordered bg-white d-none" id="dataTable">
-      <thead>
-        <tr>
-          <th>الاسم واللقب</th>
-          <th>رقم الهاتف</th>
-          <th>بطاقة التعريف</th>
-          <th>الحالة</th>
-          <th>الموعد</th>
-          <th>إجراء</th>
-        </tr>
-      </thead>
-      <tbody id="tableBody"></tbody>
-    </table>
+
+    <div class="card shadow-sm rounded-4 d-none" id="tableCard">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="table-primary">
+            <tr>
+              <th>الاسم</th>
+              <th>الهاتف</th>
+              <th>البريد</th>
+              <th>المستشفى / القسم</th>
+              <th>الموعد</th>
+              <th>إجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -34,7 +52,7 @@
     const passwordInput = document.getElementById('adminPassword');
     const loadBtn = document.getElementById('loadDataBtn');
     const errorDiv = document.getElementById('errorMsg');
-    const table = document.getElementById('dataTable');
+    const tableCard = document.getElementById('tableCard');
     const tbody = document.getElementById('tableBody');
 
     loadBtn.addEventListener('click', async () => {
@@ -45,9 +63,9 @@
           headers: { 'Authorization': `Bearer ${pwd}` }
         });
         if (!res.ok) {
-          errorDiv.textContent = 'كلمة السر غير صحيحة أو انتهت الصلاحية';
+          errorDiv.textContent = 'كلمة السر غير صحيحة';
           errorDiv.classList.remove('d-none');
-          table.classList.add('d-none');
+          tableCard.classList.add('d-none');
           return;
         }
         registrations = await res.json();
@@ -63,35 +81,43 @@
       tbody.innerHTML = '';
       registrations.forEach(reg => {
         const row = document.createElement('tr');
+        const rdvValue = reg.rendez_vous ? new Date(reg.rendez_vous).toISOString().slice(0,16) : '';
         row.innerHTML = `
           <td>${reg.nom} ${reg.prenom}</td>
           <td>${reg.telephone}</td>
-          <td>${reg.cin}</td>
-          <td>${reg.paye ? '✅ مسدد' : '❌ غير مسدد'}</td>
+          <td>${reg.email || ''}</td>
+          <td>${reg.hopital} - ${reg.departement}</td>
           <td>
-            <input type="datetime-local" value="${reg.rendezVous || ''}" class="form-control form-control-sm" id="rdv-${reg.id}">
+            <input type="datetime-local" value="${rdvValue}" class="form-control form-control-sm" id="rdv-${reg.id}">
           </td>
           <td>
-            <button class="btn btn-sm btn-success mb-1" onclick="setAppointment('${reg.id}')">تحديد الموعد</button>
-            <button class="btn btn-sm btn-info" onclick="sendSMS('${reg.id}')">إرسال SMS وهمي</button>
+            <div class="btn-group btn-group-sm">
+              <button class="btn btn-outline-success" onclick="setAppointment('${reg.id}')">تحديد</button>
+              <button class="btn btn-outline-info" onclick="sendSMS('${reg.id}')">SMS وهمي</button>
+            </div>
           </td>
         `;
         tbody.appendChild(row);
       });
-      table.classList.remove('d-none');
+      tableCard.classList.remove('d-none');
     }
 
     async function setAppointment(id) {
       const dateInput = document.getElementById(`rdv-${id}`);
       if (!dateInput.value) return alert('اختر التاريخ والوقت');
       const pwd = passwordInput.value.trim();
-      await fetch('/api/admin/schedule', {
+      const res = await fetch('/api/admin/schedule', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${pwd}` },
         body: JSON.stringify({ id, dateRdv: dateInput.value })
       });
-      alert('تم تحديد الموعد');
-      loadBtn.click(); // تحديث
+      const data = await res.json();
+      if (data.success) {
+        alert('تم تحديد الموعد وإرسال إشعار للمريض');
+        loadBtn.click();
+      } else {
+        alert('خطأ: ' + data.error);
+      }
     }
 
     async function sendSMS(id) {
@@ -102,11 +128,8 @@
         body: JSON.stringify({ id })
       });
       const data = await res.json();
-      if (data.success) {
-        alert('📱 SMS تجريبي:\n' + data.sms);
-      } else {
-        alert('خطأ: ' + data.error);
-      }
+      if (data.success) alert('📱 SMS (محاكاة): ' + data.sms);
+      else alert('خطأ: ' + data.error);
     }
   </script>
 </body>
