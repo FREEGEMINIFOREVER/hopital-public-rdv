@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>لوحة تحكم موعدي</title>
+  <title>لوحة تحكم موعدي - المُسرّع</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
@@ -14,6 +14,7 @@
       <div><span class="badge bg-primary fs-6">فريق موعدي</span></div>
     </div>
 
+    <!-- صف كلمة السر والتحميل -->
     <div class="card shadow-sm rounded-4 mb-4">
       <div class="card-body">
         <div class="row align-items-end">
@@ -27,20 +28,45 @@
       </div>
     </div>
 
+    <!-- أزرار الفلترة والتحديث الجماعي -->
+    <div id="actionBar" class="card shadow-sm rounded-4 mb-4 d-none">
+      <div class="card-body">
+        <div class="d-flex flex-wrap align-items-center gap-2">
+          <span class="fw-bold me-2">تصفية:</span>
+          <button class="btn btn-outline-secondary btn-sm filter-btn active" data-filter="all">الكل</button>
+          <button class="btn btn-outline-danger btn-sm filter-btn" data-filter="new">جديد</button>
+          <button class="btn btn-outline-warning btn-sm filter-btn" data-filter="processing">قيد المعالجة</button>
+          <button class="btn btn-outline-success btn-sm filter-btn" data-filter="completed">مكتمل</button>
+
+          <div class="vr mx-2 d-none d-md-block"></div>
+
+          <span class="fw-bold me-2">تحديث جماعي:</span>
+          <select id="bulkStatus" class="form-select form-select-sm" style="width: auto;">
+            <option value="">-- اختر حالة --</option>
+            <option value="new">جديد</option>
+            <option value="processing">قيد المعالجة</option>
+            <option value="completed">مكتمل</option>
+          </select>
+          <button id="applyBulkBtn" class="btn btn-sm btn-success">تطبيق على المحدد</button>
+        </div>
+      </div>
+    </div>
+
     <div id="errorMsg" class="alert alert-danger d-none"></div>
 
+    <!-- جدول الطلبات -->
     <div class="card shadow-sm rounded-4 d-none" id="tableCard">
       <div class="table-responsive">
         <table class="table table-hover mb-0">
           <thead class="table-dark">
             <tr>
+              <th><input type="checkbox" id="selectAll"></th>
               <th>المريض</th>
               <th>الهاتف</th>
-              <th>البريد</th>
               <th>المستشفى / القسم</th>
               <th>الحالة</th>
               <th>الموعد</th>
-              <th>تحديث</th>
+              <th>تحديث فردي</th>
             </tr>
           </thead>
           <tbody id="tableBody"></tbody>
@@ -50,13 +76,19 @@
   </div>
 
   <script>
-    let requests = [];
+    let allRequests = [];
+    let currentFilter = 'all';
     const passwordInput = document.getElementById('adminPassword');
     const loadBtn = document.getElementById('loadRequestsBtn');
     const errorDiv = document.getElementById('errorMsg');
     const tableCard = document.getElementById('tableCard');
+    const actionBar = document.getElementById('actionBar');
     const tbody = document.getElementById('tableBody');
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const applyBulkBtn = document.getElementById('applyBulkBtn');
+    const bulkStatusSelect = document.getElementById('bulkStatus');
 
+    // --- تحميل الطلبات ---
     loadBtn.addEventListener('click', async () => {
       const pwd = passwordInput.value.trim();
       if (!pwd) return alert('أدخل كلمة السر');
@@ -68,26 +100,60 @@
           errorDiv.textContent = 'كلمة سر غير صحيحة';
           errorDiv.classList.remove('d-none');
           tableCard.classList.add('d-none');
+          actionBar.classList.add('d-none');
           return;
         }
-        requests = await res.json();
+        allRequests = await res.json();
         errorDiv.classList.add('d-none');
-        renderTable();
+        actionBar.classList.remove('d-none');
+        applyFilter();
       } catch (e) {
         errorDiv.textContent = 'فشل الاتصال';
         errorDiv.classList.remove('d-none');
       }
     });
 
-    function renderTable() {
+    // --- تطبيق الفلترة ---
+    function applyFilter() {
+      let filtered = allRequests;
+      if (currentFilter !== 'all') {
+        filtered = allRequests.filter(r => r.status === currentFilter);
+      }
+      renderTable(filtered);
+    }
+
+    // --- أزرار الفلترة ---
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentFilter = btn.dataset.filter;
+        applyFilter();
+      });
+    });
+
+    // --- تحديد الكل ---
+    selectAllCheckbox.addEventListener('change', () => {
+      const checkboxes = document.querySelectorAll('.row-checkbox');
+      checkboxes.forEach(cb => cb.checked = selectAllCheckbox.checked);
+    });
+
+    // --- رسم الجدول ---
+    function renderTable(requests) {
       tbody.innerHTML = '';
+      if (requests.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">لا توجد طلبات مطابقة</td></tr>';
+        tableCard.classList.remove('d-none');
+        return;
+      }
+
       requests.forEach(req => {
         const row = document.createElement('tr');
         const rdvValue = req.rendez_vous ? new Date(req.rendez_vous).toISOString().slice(0,16) : '';
         row.innerHTML = `
+          <td><input type="checkbox" class="row-checkbox" data-id="${req.id}"></td>
           <td>${req.nom} ${req.prenom}</td>
           <td>${req.telephone}</td>
-          <td>${req.email || ''}</td>
           <td>${req.hopital} - ${req.departement}</td>
           <td>
             <select class="form-select form-select-sm status-select" data-id="${req.id}">
@@ -106,37 +172,61 @@
         tbody.appendChild(row);
       });
 
-      // أزرار الحفظ
+      // أحداث أزرار الحفظ الفردية
       document.querySelectorAll('.update-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
           const id = e.target.dataset.id;
           const statusSelect = document.querySelector(`.status-select[data-id="${id}"]`);
           const rdvInput = document.querySelector(`.rdv-input[data-id="${id}"]`);
-          const status = statusSelect.value;
-          const rendez_vous = rdvInput.value;
-
-          const pwd = passwordInput.value.trim();
-          try {
-            const res = await fetch(`/api/staff/update/${id}`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${pwd}` },
-              body: JSON.stringify({ status, rendez_vous })
-            });
-            const data = await res.json();
-            if (data.success) {
-              alert('تم التحديث بنجاح');
-              loadBtn.click(); // إعادة تحميل القائمة
-            } else {
-              alert('خطأ: ' + data.error);
-            }
-          } catch (err) {
-            alert('فشل الاتصال');
-          }
+          await updateRequest(id, statusSelect.value, rdvInput.value);
         });
       });
 
       tableCard.classList.remove('d-none');
     }
+
+    // --- تحديث طلب واحد (دالة مساعدة) ---
+    async function updateRequest(id, status, rendez_vous) {
+      const pwd = passwordInput.value.trim();
+      try {
+        const res = await fetch(`/api/staff/update/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${pwd}` },
+          body: JSON.stringify({ status, rendez_vous })
+        });
+        if (!res.ok) throw new Error('فشل');
+        return true;
+      } catch (err) {
+        alert('فشل تحديث الطلب ' + id);
+        return false;
+      }
+    }
+
+    // --- تطبيق التحديث الجماعي ---
+    applyBulkBtn.addEventListener('click', async () => {
+      const newStatus = bulkStatusSelect.value;
+      if (!newStatus) return alert('اختر حالة أولاً');
+
+      const selectedIds = [...document.querySelectorAll('.row-checkbox:checked')].map(cb => cb.dataset.id);
+      if (selectedIds.length === 0) return alert('حدد طلباً واحداً على الأقل');
+
+      if (!confirm(`سيتم تغيير حالة ${selectedIds.length} طلب إلى "${newStatus}". استمرار؟`)) return;
+
+      applyBulkBtn.disabled = true;
+      applyBulkBtn.textContent = 'جاري التطبيق...';
+
+      let count = 0;
+      for (const id of selectedIds) {
+        const success = await updateRequest(id, newStatus, null); // لا نغير الموعد هنا
+        if (success) count++;
+      }
+
+      alert(`تم تحديث ${count} من أصل ${selectedIds.length} طلب بنجاح.`);
+      applyBulkBtn.disabled = false;
+      applyBulkBtn.textContent = 'تطبيق على المحدد';
+      loadBtn.click(); // إعادة تحميل
+    });
+
   </script>
 </body>
 </html>
