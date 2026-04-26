@@ -3,48 +3,79 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>تسجيل وخلاص عن بعد</title>
+  <title>تسجيل وخلاص عن بعد – المستشفى العمومي</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
 </head>
-<body class="bg-white">
-  <div class="container py-5">
+<body>
+  <div class="container py-4">
     <div class="text-center mb-4">
-      <!-- صورة طبيب/طبيبة (يمكنك تغيير الرابط بصورة حقيقية لاحقاً) -->
-      <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='40' r='25' fill='%23a0d2f0'/%3E%3Crect x='35' y='65' width='30' height='25' rx='5' fill='%23a0d2f0'/%3E%3Ctext x='50' y='55' text-anchor='middle' font-size='30'%3E👩‍⚕️%3C/text%3E%3C/svg%3E"
-           alt="طبيب" width="120" class="mb-3">
-      <h2 class="fw-bold text-primary">المستشفى العمومي – تسجيل وخلاص عن بعد</h2>
-      <p class="text-muted">أدخل معلوماتك لتحصل على شهادة QR تثبت الخلاص</p>
+      <!-- استخدمنا صورة جماعية لأطباء (يمكنك وضع صورتك في public/images/hero-doctors.jpg) -->
+      <img src="images/hero-doctors.jpg" alt="فريق الأطباء" class="hero-img" onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'%3E%3Ccircle cx=\'50\' cy=\'40\' r=\'25\' fill=\'%23a0d2f0\'/%3E%3Ctext x=\'50\' y=\'55\' text-anchor=\'middle\' font-size=\'30\'%3E👩‍⚕️%3C/text%3E%3C/svg%3E';">
+      <h1 class="fw-bold mt-2">المستشفى العمومي</h1>
+      <p class="lead text-muted">تسجيل وخلاص عن بعد – وفر وقتك وتجنب الاكتظاظ</p>
     </div>
 
-    <div class="card shadow-sm mx-auto" style="max-width: 500px;">
-      <div class="card-body">
+    <div class="card shadow-lg border-0 rounded-4 mx-auto" style="max-width: 600px;">
+      <div class="card-body p-4">
         <form id="registrationForm">
-          <div class="mb-3">
-            <label class="form-label">الاسم</label>
-            <input type="text" id="nom" class="form-control" required>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">الاسم *</label>
+              <input type="text" id="nom" class="form-control" placeholder="الاسم" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">اللقب *</label>
+              <input type="text" id="prenom" class="form-control" placeholder="اللقب" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">رقم بطاقة التعريف *</label>
+              <input type="text" id="cin" class="form-control" placeholder="XXXX-XXXX-XXXX" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">رقم الهاتف *</label>
+              <input type="tel" id="telephone" class="form-control" placeholder="06XXXXXXXX" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label">البريد الإلكتروني *</label>
+              <input type="email" id="email" class="form-control" placeholder="example@email.com" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">المستشفى *</label>
+              <select id="hopital" class="form-select" required>
+                <option value="">-- اختر المستشفى --</option>
+                <option value="المستشفى الجامعي ابن رشد">المستشفى الجامعي ابن رشد</option>
+                <option value="مستشفى الحسيني">مستشفى الحسيني</option>
+                <option value="مستشفى الأم والطفل">مستشفى الأم والطفل</option>
+                <option value="مستشفى الأمراض الصدرية">مستشفى الأمراض الصدرية</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">القسم *</label>
+              <select id="departement" class="form-select" required>
+                <option value="">-- اختر القسم --</option>
+                <option value="الطب العام">الطب العام</option>
+                <option value="طب الأطفال">طب الأطفال</option>
+                <option value="النساء والتوليد">النساء والتوليد</option>
+                <option value="الجراحة">الجراحة</option>
+                <option value="العظام">العظام</option>
+              </select>
+            </div>
           </div>
-          <div class="mb-3">
-            <label class="form-label">اللقب</label>
-            <input type="text" id="prenom" class="form-control" required>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">رقم بطاقة التعريف الوطنية</label>
-            <input type="text" id="cin" class="form-control" required>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">رقم الهاتف</label>
-            <input type="tel" id="telephone" class="form-control" required>
-          </div>
-          <button type="submit" class="btn btn-primary w-100 mb-3">تسجيل وخلاص (محاكاة الدفع)</button>
+
+          <button type="submit" class="btn btn-success btn-lg w-100 mt-4">تسجيل وخلاص (محاكاة الدفع)</button>
         </form>
 
-        <!-- مكان عرض QR -->
+        <!-- عرض النتيجة و QR -->
         <div id="resultSection" class="d-none text-center mt-4">
-          <h5 class="text-success">تم التسجيل بنجاح!</h5>
-          <img id="qrImage" src="" alt="QR Code" class="img-fluid border p-2 mb-2">
+          <div class="alert alert-success">
+            <h5>✅ تم التسجيل والخلاص بنجاح!</h5>
+            <p id="emailMsg"></p>
+          </div>
+          <img id="qrImage" src="" alt="QR Code" class="img-fluid qr-border mb-2">
           <br>
-          <a id="downloadLink" href="#" download="QR_Code.png" class="btn btn-outline-primary btn-sm">حفظ الصورة</a>
+          <a id="downloadLink" href="#" download="QR_Code.png" class="btn btn-outline-primary">حفظ الصورة</a>
         </div>
       </div>
     </div>
@@ -60,7 +91,10 @@
         nom: document.getElementById('nom').value.trim(),
         prenom: document.getElementById('prenom').value.trim(),
         cin: document.getElementById('cin').value.trim(),
-        telephone: document.getElementById('telephone').value.trim()
+        telephone: document.getElementById('telephone').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        hopital: document.getElementById('hopital').value,
+        departement: document.getElementById('departement').value
       };
 
       try {
@@ -71,9 +105,9 @@
         });
         const result = await response.json();
         if (result.success) {
-          // عرض QR
           document.getElementById('qrImage').src = result.qrCode;
           document.getElementById('downloadLink').href = result.qrCode;
+          document.getElementById('emailMsg').textContent = result.message;
           document.getElementById('resultSection').classList.remove('d-none');
         } else {
           alert('خطأ: ' + (result.error || 'فشل التسجيل'));
