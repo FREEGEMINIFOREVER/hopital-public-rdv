@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>وسيط المواعيد الطبية - احجز بسهولة</title>
+  <title>موعدي - احجز موعدك بسهولة</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
@@ -11,16 +11,15 @@
 <body>
   <div class="container py-4">
     <div class="text-center mb-4">
-      <!-- شعار الشركة (يمكنك استبداله بصورة شعارك الحقيقية) -->
-      <div class="logo-circle mb-3">و</div>
+      <!-- شعار مؤقت شركة موعدي -->
+      <div class="logo-circle mb-3">م</div>
       <h2 class="fw-bold">موعدي</h2>
-      <p class="lead text-muted">نحجز موعدك في المستشفى العمومي وأنت في بيتك</p>
+      <p class="lead text-muted">فريق موعدي يحجز موعدك في المستشفى العمومي وأنت في بيتك</p>
     </div>
 
     <div class="card shadow-lg border-0 rounded-4 mx-auto" style="max-width: 600px;">
       <div class="card-body p-4">
         <form id="registrationForm">
-          <!-- نفس الحقول السابقة (الاسم، اللقب، البطاقة، الهاتف، البريد، المستشفى، القسم) -->
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label">الاسم *</label>
@@ -49,6 +48,7 @@
                 <option value="المستشفى الجامعي ابن رشد">المستشفى الجامعي ابن رشد</option>
                 <option value="مستشفى الحسيني">مستشفى الحسيني</option>
                 <option value="مستشفى الأم والطفل">مستشفى الأم والطفل</option>
+                <option value="مستشفى الأمراض الصدرية">مستشفى الأمراض الصدرية</option>
               </select>
             </div>
             <div class="col-md-6">
@@ -58,12 +58,16 @@
                 <option value="الطب العام">الطب العام</option>
                 <option value="طب الأطفال">طب الأطفال</option>
                 <option value="النساء والتوليد">النساء والتوليد</option>
+                <option value="الجراحة">الجراحة</option>
+                <option value="العظام">العظام</option>
               </select>
             </div>
           </div>
+
           <button type="submit" class="btn btn-primary btn-lg w-100 mt-4">احجز موعدك الآن</button>
         </form>
 
+        <!-- عرض النتيجة و QR -->
         <div id="resultSection" class="d-none text-center mt-4">
           <div class="alert alert-info">
             <h5>✅ تم استلام طلبك!</h5>
@@ -75,10 +79,14 @@
         </div>
       </div>
     </div>
+
+    <!-- رابط لوحة الإدارة -->
+    <div class="text-center mt-3">
+      <a href="/staff.html" class="text-secondary">دخول الإدارة (فريق موعدي)</a>
+    </div>
   </div>
 
   <script>
-    // نفس السكريبت السابق، لكن مع الرسالة الجديدة
     document.getElementById('registrationForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const data = {
