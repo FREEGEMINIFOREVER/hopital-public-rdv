@@ -25,7 +25,7 @@ function decrypt(ciphertext) {
   return bytes.toString(CryptoJS.enc.Utf8);
 }
 
-// --- دوال قاعدة البيانات: إنشاء الجداول إذا لم تكن موجودة ---
+// --- تهيئة الجداول (تعمل مرة واحدة) ---
 async function initializeDatabase() {
   const client = await pool.connect();
   try {
@@ -43,7 +43,8 @@ async function initializeDatabase() {
         date_creation TIMESTAMPTZ DEFAULT NOW(),
         rendez_vous TIMESTAMPTZ,
         sms_envoye BOOLEAN DEFAULT false,
-        email_envoye BOOLEAN DEFAULT false
+        email_envoye BOOLEAN DEFAULT false,
+        status VARCHAR(20) DEFAULT 'new'
       );
     `);
     console.log('✅ قاعدة البيانات جاهزة');
@@ -52,19 +53,18 @@ async function initializeDatabase() {
   }
 }
 
-// --- إرسال بريد تأكيد (تم تعطيله مؤقتاً) ---
-async function sendConfirmationEmail(patient) {
-  // حالياً البريد معطل للتجربة، عند التفعيل نزيل التعليق
-  console.log(`📧 [محاكاة] بريد تأكيد كان سيُرسل إلى ${patient.email} للمريض ${patient.nom} ${patient.prenom}`);
-  return true; // نفترض النجاح
+// --- محاكاة إرسال بريد (معطل) ---
+async function sendNotification(patient, subject, message) {
+  console.log(`📧 [محاكاة] ${subject} إلى ${patient.email || 'بلا بريد'}: ${message}`);
+  return true;
 }
 
-// --- نقطة النهاية: تسجيل المريض ---
+// --- نقطة نهاية: تسجيل المريض (بوابة الشركة) ---
 app.post('/api/register', async (req, res) => {
   try {
     const { nom, prenom, cin, telephone, email, hopital, departement } = req.body;
     if (!nom || !prenom || !cin || !telephone || !email || !hopital || !departement) {
-      return res.status(400).json({ error: 'جميع الحقول مطلوبة (بما في ذلك البريد الإلكتروني)' });
+      return res.status(400).json({ error: 'جميع الحقول مطلوبة' });
     }
 
     const id = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
@@ -81,16 +81,17 @@ app.post('/api/register', async (req, res) => {
       client.release();
     }
 
-    // محاكاة إرسال بريد تأكيد (لن يفشل أبداً)
-    await sendConfirmationEmail({ id, nom, prenom, email, hopital, departement });
+    // إشعار ترحيب بالمريض (محاكاة)
+    await sendNotification({ email, nom, prenom }, 'تأكيد استلام الطلب', 'سنقوم بحجز موعدك وإعلامك به قريباً.');
 
+    // QR Code
     const qrData = JSON.stringify({ id, nom, prenom, telephone, date: new Date().toISOString() });
     const qrBuffer = await QRCode.toBuffer(qrData, { width: 300 });
     const base64QR = qrBuffer.toString('base64');
 
     res.json({
       success: true,
-      message: 'تم التسجيل والخلاص بنجاح (البريد معطل حالياً للتجربة)',
+      message: 'تم استلام طلبك بنجاح! سيتواصل معك فريقنا قريباً لتأكيد الموعد.',
       qrCode: `data:image/png;base64,${base64QR}`,
       id
     });
@@ -100,8 +101,8 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-// --- لوحة الإدارة: جلب القائمة (محمية) ---
-app.get('/api/admin/registrations', async (req, res) => {
+// --- لوحة تحكم الموظف: جلب جميع الطلبات ---
+app.get('/api/staff/requests', async (req, res) => {
   const auth = req.headers.authorization;
   if (auth !== `Bearer ${process.env.ADMIN_PASSWORD}`) {
     return res.status(401).json({ error: 'غير مصرح' });
@@ -112,43 +113,54 @@ app.get('/api/admin/registrations', async (req, res) => {
     const result = await client.query('SELECT * FROM registrations ORDER BY date_creation DESC');
     client.release();
 
-    const registrations = result.rows.map(r => ({
+    const requests = result.rows.map(r => ({
       ...r,
       cin: decrypt(r.cin_encrypted)
     }));
-    res.json(registrations);
+    res.json(requests);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'خطأ في جلب البيانات' });
   }
 });
 
-// --- تحديد موعد ---
-app.post('/api/admin/schedule', async (req, res) => {
+// --- تحديث حالة الطلب والموعد ---
+app.put('/api/staff/update/:id', async (req, res) => {
   const auth = req.headers.authorization;
   if (auth !== `Bearer ${process.env.ADMIN_PASSWORD}`) {
     return res.status(401).json({ error: 'غير مصرح' });
   }
-  const { id, dateRdv } = req.body;
-  if (!id || !dateRdv) return res.status(400).json({ error: 'المعرف والتاريخ مطلوبان' });
+
+  const { id } = req.params;
+  const { status, rendez_vous } = req.body;
 
   try {
     const client = await pool.connect();
-    await client.query('UPDATE registrations SET rendez_vous = $1 WHERE id = $2', [dateRdv, id]);
+    if (status) {
+      await client.query('UPDATE registrations SET status = $1 WHERE id = $2', [status, id]);
+    }
+    if (rendez_vous) {
+      await client.query('UPDATE registrations SET rendez_vous = $1 WHERE id = $2', [rendez_vous, id]);
+    }
     client.release();
 
-    // محاكاة إعلام المريض (لن نرسل بريداً فعلياً)
-    console.log(`📅 [محاكاة] تم تحديد موعد للمعرف ${id} في ${dateRdv}`);
+    // إذا اكتمل الطلب (status = 'completed') نرسل إشعاراً للمريض
+    if (status === 'completed' || rendez_vous) {
+      const patient = (await pool.query('SELECT email, nom, prenom FROM registrations WHERE id = $1', [id])).rows[0];
+      if (patient) {
+        await sendNotification(patient, 'تم تحديد موعدك', `موعدك في ${rendez_vous || 'سيتم إعلامك لاحقاً'}.`);
+      }
+    }
 
-    res.json({ success: true, message: 'تم تحديد الموعد بنجاح (الإشعار معطل مؤقتاً)' });
+    res.json({ success: true, message: 'تم التحديث بنجاح' });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'فشل في تحديد الموعد' });
+    res.status(500).json({ error: 'فشل التحديث' });
   }
 });
 
-// --- محاكاة SMS ---
-app.post('/api/admin/send-sms', async (req, res) => {
+// --- محاكاة SMS (تبقى كما هي) ---
+app.post('/api/staff/send-sms', async (req, res) => {
   const auth = req.headers.authorization;
   if (auth !== `Bearer ${process.env.ADMIN_PASSWORD}`) {
     return res.status(401).json({ error: 'غير مصرح' });
@@ -156,7 +168,7 @@ app.post('/api/admin/send-sms', async (req, res) => {
   const { id } = req.body;
   try {
     const patient = (await pool.query('SELECT telephone, nom, prenom, rendez_vous FROM registrations WHERE id = $1', [id])).rows[0];
-    const smsText = `السيد/ة ${patient.nom} ${patient.prenom}، موعدكم: ${patient.rendez_vous}. المستشفى العمومي.`;
+    const smsText = `السيد/ة ${patient.nom} ${patient.prenom}، تم تحديد موعدكم: ${patient.rendez_vous || 'لم يحدد بعد'}. شكراً لثقتكم.`;
     console.log('📱 SMS (محاكاة):', smsText);
     res.json({ success: true, sms: smsText });
   } catch (err) {
@@ -164,11 +176,10 @@ app.post('/api/admin/send-sms', async (req, res) => {
   }
 });
 
-// --- الصفحات الثابتة ---
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
+app.get('/staff', (req, res) => res.sendFile(path.join(__dirname, 'public', 'staff.html')));
 
 const PORT = process.env.PORT || 3000;
 initializeDatabase().then(() => {
-  app.listen(PORT, () => console.log(`✅ السيرفر يعمل على المنفذ ${PORT}`));
+  app.listen(PORT, () => console.log(`✅ منصة وسيط المواعيد تعمل على المنفذ ${PORT}`));
 });
