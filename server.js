@@ -25,7 +25,7 @@ function decrypt(ciphertext) {
   return bytes.toString(CryptoJS.enc.Utf8);
 }
 
-// --- تهيئة الجداول (تعمل مرة واحدة) ---
+// --- تهيئة قاعدة البيانات (إنشاء الجدول وإضافة عمود الحالة) ---
 async function initializeDatabase() {
   const client = await pool.connect();
   try {
@@ -43,23 +43,26 @@ async function initializeDatabase() {
         date_creation TIMESTAMPTZ DEFAULT NOW(),
         rendez_vous TIMESTAMPTZ,
         sms_envoye BOOLEAN DEFAULT false,
-        email_envoye BOOLEAN DEFAULT false,
-        status VARCHAR(20) DEFAULT 'new'
+        email_envoye BOOLEAN DEFAULT false
       );
     `);
-    console.log('✅ قاعدة البيانات جاهزة');
+
+    // إضافة عمود الحالة إن لم يكن موجوداً
+    await client.query(`ALTER TABLE registrations ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'new';`);
+
+    console.log('✅ قاعدة البيانات جاهزة (بما في ذلك عمود الحالة)');
   } finally {
     client.release();
   }
 }
 
-// --- محاكاة إرسال بريد (معطل) ---
+// --- محاكاة إرسال إشعار (بريد/واتساب) ---
 async function sendNotification(patient, subject, message) {
   console.log(`📧 [محاكاة] ${subject} إلى ${patient.email || 'بلا بريد'}: ${message}`);
   return true;
 }
 
-// --- نقطة نهاية: تسجيل المريض (بوابة الشركة) ---
+// --- نقطة النهاية: تسجيل مريض جديد (واجهة "موعدي") ---
 app.post('/api/register', async (req, res) => {
   try {
     const { nom, prenom, cin, telephone, email, hopital, departement } = req.body;
@@ -81,17 +84,17 @@ app.post('/api/register', async (req, res) => {
       client.release();
     }
 
-    // إشعار ترحيب بالمريض (محاكاة)
-    await sendNotification({ email, nom, prenom }, 'تأكيد استلام الطلب', 'سنقوم بحجز موعدك وإعلامك به قريباً.');
+    // إشعار ترحيب
+    await sendNotification({ email, nom, prenom }, 'تأكيد استلام الطلب', 'فريق موعدي يستلم طلبك وسيحدد لك موعداً قريباً.');
 
-    // QR Code
+    // توليد QR
     const qrData = JSON.stringify({ id, nom, prenom, telephone, date: new Date().toISOString() });
     const qrBuffer = await QRCode.toBuffer(qrData, { width: 300 });
     const base64QR = qrBuffer.toString('base64');
 
     res.json({
       success: true,
-      message: 'تم استلام طلبك بنجاح! سيتواصل معك فريقنا قريباً لتأكيد الموعد.',
+      message: 'تم استلام طلبك بنجاح! فريق موعدي سيحجز موعدك ويتواصل معك قريباً.',
       qrCode: `data:image/png;base64,${base64QR}`,
       id
     });
@@ -101,7 +104,7 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-// --- لوحة تحكم الموظف: جلب جميع الطلبات ---
+// --- لوحة الموظف: جلب جميع الطلبات ---
 app.get('/api/staff/requests', async (req, res) => {
   const auth = req.headers.authorization;
   if (auth !== `Bearer ${process.env.ADMIN_PASSWORD}`) {
@@ -144,7 +147,7 @@ app.put('/api/staff/update/:id', async (req, res) => {
     }
     client.release();
 
-    // إذا اكتمل الطلب (status = 'completed') نرسل إشعاراً للمريض
+    // إذا اكتمل الطلب، محاكاة إشعار
     if (status === 'completed' || rendez_vous) {
       const patient = (await pool.query('SELECT email, nom, prenom FROM registrations WHERE id = $1', [id])).rows[0];
       if (patient) {
@@ -159,7 +162,7 @@ app.put('/api/staff/update/:id', async (req, res) => {
   }
 });
 
-// --- محاكاة SMS (تبقى كما هي) ---
+// --- محاكاة SMS (يبقى اختيارياً) ---
 app.post('/api/staff/send-sms', async (req, res) => {
   const auth = req.headers.authorization;
   if (auth !== `Bearer ${process.env.ADMIN_PASSWORD}`) {
@@ -168,7 +171,7 @@ app.post('/api/staff/send-sms', async (req, res) => {
   const { id } = req.body;
   try {
     const patient = (await pool.query('SELECT telephone, nom, prenom, rendez_vous FROM registrations WHERE id = $1', [id])).rows[0];
-    const smsText = `السيد/ة ${patient.nom} ${patient.prenom}، تم تحديد موعدكم: ${patient.rendez_vous || 'لم يحدد بعد'}. شكراً لثقتكم.`;
+    const smsText = `السيد/ة ${patient.nom} ${patient.prenom}، تم تحديد موعدكم: ${patient.rendez_vous || 'لم يحدد بعد'}. فريق موعدي.`;
     console.log('📱 SMS (محاكاة):', smsText);
     res.json({ success: true, sms: smsText });
   } catch (err) {
@@ -176,10 +179,12 @@ app.post('/api/staff/send-sms', async (req, res) => {
   }
 });
 
+// --- توجيه الصفحات ---
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/staff', (req, res) => res.sendFile(path.join(__dirname, 'public', 'staff.html')));
 
+// --- بدء التشغيل ---
 const PORT = process.env.PORT || 3000;
 initializeDatabase().then(() => {
-  app.listen(PORT, () => console.log(`✅ منصة وسيط المواعيد تعمل على المنفذ ${PORT}`));
+  app.listen(PORT, () => console.log(`✅ منصة موعدي تعمل على المنفذ ${PORT}`));
 });
