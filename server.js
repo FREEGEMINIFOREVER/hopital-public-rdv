@@ -4,7 +4,6 @@ const bodyParser = require('body-parser');
 const QRCode = require('qrcode');
 const CryptoJS = require('crypto-js');
 const { Pool } = require('pg');
-const nodemailer = require('nodemailer');
 const path = require('path');
 
 const app = express();
@@ -14,18 +13,7 @@ app.use(express.static('public'));
 // --- إعداد اتصال PostgreSQL ---
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false } // مطلوب لـ Render
-});
-
-// --- إعداد البريد الإلكتروني باستخدام Nodemailer ---
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: false, // true لـ 465
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS
-  }
+  ssl: { rejectUnauthorized: false }
 });
 
 // --- دوال التشفير ---
@@ -64,31 +52,11 @@ async function initializeDatabase() {
   }
 }
 
-// --- إرسال بريد إلكتروني تأكيد ---
+// --- إرسال بريد تأكيد (تم تعطيله مؤقتاً) ---
 async function sendConfirmationEmail(patient) {
-  const mailOptions = {
-    from: `"المستشفى العمومي" <${process.env.SMTP_USER}>`,
-    to: patient.email,
-    subject: 'تأكيد التسجيل والخلاص – المستشفى العمومي',
-    html: `
-      <div dir="rtl" style="font-family: Arial, sans-serif; background: #f0f8ff; padding: 20px; border-radius: 10px;">
-        <h2 style="color: #1a73e8;">أهلاً ${patient.nom} ${patient.prenom}</h2>
-        <p>تم تسجيلكم بنجاح في المستشفى العمومي – ${patient.hopital}، قسم ${patient.departement}.</p>
-        <p>رقم التسجيل: <strong>${patient.id}</strong></p>
-        <p>تم تأكيد الخلاص. سنرسل لكم الموعد لاحقاً.</p>
-        <p style="color: gray;">يرجى الاحتفاظ بكود QR للاستخدام عند الحضور.</p>
-      </div>
-    `
-  };
-
-  try {
-    await transporter.sendMail(mailOptions);
-    console.log(`📧 بريد تأكيد أُرسل إلى ${patient.email}`);
-    return true;
-  } catch (err) {
-    console.error('❌ فشل إرسال البريد:', err.message);
-    return false;
-  }
+  // حالياً البريد معطل للتجربة، عند التفعيل نزيل التعليق
+  console.log(`📧 [محاكاة] بريد تأكيد كان سيُرسل إلى ${patient.email} للمريض ${patient.nom} ${patient.prenom}`);
+  return true; // نفترض النجاح
 }
 
 // --- نقطة النهاية: تسجيل المريض ---
@@ -102,7 +70,6 @@ app.post('/api/register', async (req, res) => {
     const id = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
     const encryptedCIN = encrypt(cin);
 
-    // حفظ في القاعدة
     const client = await pool.connect();
     try {
       await client.query(
@@ -114,17 +81,16 @@ app.post('/api/register', async (req, res) => {
       client.release();
     }
 
-    // إرسال بريد تأكيد
-    const emailSent = await sendConfirmationEmail({ id, nom, prenom, email, hopital, departement });
+    // محاكاة إرسال بريد تأكيد (لن يفشل أبداً)
+    await sendConfirmationEmail({ id, nom, prenom, email, hopital, departement });
 
-    // QR كما السابق
     const qrData = JSON.stringify({ id, nom, prenom, telephone, date: new Date().toISOString() });
     const qrBuffer = await QRCode.toBuffer(qrData, { width: 300 });
     const base64QR = qrBuffer.toString('base64');
 
     res.json({
       success: true,
-      message: 'تم التسجيل والخلاص بنجاح' + (emailSent ? ' وتم إرسال بريد تأكيد' : ' (تعذر إرسال البريد)'),
+      message: 'تم التسجيل والخلاص بنجاح (البريد معطل حالياً للتجربة)',
       qrCode: `data:image/png;base64,${base64QR}`,
       id
     });
@@ -148,7 +114,7 @@ app.get('/api/admin/registrations', async (req, res) => {
 
     const registrations = result.rows.map(r => ({
       ...r,
-      cin: decrypt(r.cin_encrypted) // إظهار البطاقة بشكل مقروء للأدمن
+      cin: decrypt(r.cin_encrypted)
     }));
     res.json(registrations);
   } catch (err) {
@@ -171,29 +137,17 @@ app.post('/api/admin/schedule', async (req, res) => {
     await client.query('UPDATE registrations SET rendez_vous = $1 WHERE id = $2', [dateRdv, id]);
     client.release();
 
-    // إرسال إشعار بريد بالموعد (إذا أردنا إعلام المريض)
-    const patient = (await pool.query('SELECT email, nom, prenom FROM registrations WHERE id = $1', [id])).rows[0];
-    if (patient && patient.email) {
-      await transporter.sendMail({
-        from: `"المستشفى العمومي" <${process.env.SMTP_USER}>`,
-        to: patient.email,
-        subject: 'تم تحديد موعدكم',
-        html: `
-          <div dir="rtl" style="font-family: Arial;">
-            <h2>موعدك في ${dateRdv}</h2>
-            <p>السيد/ة ${patient.nom} ${patient.prenom}، تم تحديد موعدكم. يرجى الحضور في التاريخ المحدد.</p>
-          </div>`
-      });
-    }
+    // محاكاة إعلام المريض (لن نرسل بريداً فعلياً)
+    console.log(`📅 [محاكاة] تم تحديد موعد للمعرف ${id} في ${dateRdv}`);
 
-    res.json({ success: true, message: 'تم تحديد الموعد وإرسال إشعار' });
+    res.json({ success: true, message: 'تم تحديد الموعد بنجاح (الإشعار معطل مؤقتاً)' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'فشل في تحديد الموعد' });
   }
 });
 
-// --- محاكاة SMS (اختياري، نبقيه) ---
+// --- محاكاة SMS ---
 app.post('/api/admin/send-sms', async (req, res) => {
   const auth = req.headers.authorization;
   if (auth !== `Bearer ${process.env.ADMIN_PASSWORD}`) {
@@ -210,7 +164,7 @@ app.post('/api/admin/send-sms', async (req, res) => {
   }
 });
 
-// --- صفحة البداية والمشرف ثابتة ---
+// --- الصفحات الثابتة ---
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 
